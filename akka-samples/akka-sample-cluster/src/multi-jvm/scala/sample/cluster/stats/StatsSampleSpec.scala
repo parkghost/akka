@@ -92,6 +92,11 @@ abstract class StatsSampleSpec extends MultiNodeSpec(StatsSampleSpecConfig)
       //#join
 
       system.actorOf(Props[StatsWorker], "statsWorker")
+      // FIXME 2654
+      // statsWorker must be started on all nodes before the
+      // statsService router is started and looks it up
+      testConductor.enter("statsWorker-started")
+
       system.actorOf(Props[StatsService], "statsService")
 
       expectMsgAllOf(
