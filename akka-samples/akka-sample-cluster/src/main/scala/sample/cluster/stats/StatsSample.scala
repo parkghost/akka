@@ -65,6 +65,7 @@ class StatsAggregator(expectedResults: Int, replyTo: ActorRef) extends Actor {
         context.stop(self)
       }
     case ReceiveTimeout ⇒
+      println("## StatsAggregator ReceiveTimeout")
       replyTo ! JobFailed("Service unavailable, try again later")
       context.stop(self)
   }

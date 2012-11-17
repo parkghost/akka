@@ -369,7 +369,10 @@ trait Router extends Actor {
 
     case Terminated(child) ⇒
       ref.removeRoutees(child :: Nil)
-      if (ref.routees.isEmpty) context.stop(self)
+      if (ref.routees.isEmpty) {
+        println("# Routee Terminated and routees isEmpty, STOP " + child)
+        context.stop(self)
+      }
 
   }: Receive) orElse routerReceive
 

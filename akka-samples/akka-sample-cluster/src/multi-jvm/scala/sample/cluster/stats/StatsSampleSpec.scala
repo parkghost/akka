@@ -95,7 +95,7 @@ abstract class StatsSampleSpec extends MultiNodeSpec(StatsSampleSpecConfig)
       // FIXME 2654
       // statsWorker must be started on all nodes before the
       // statsService router is started and looks it up
-      testConductor.enter("statsWorker-started")
+      //testConductor.enter("statsWorker-started")
 
       system.actorOf(Props[StatsService], "statsService")
 
@@ -115,11 +115,19 @@ abstract class StatsSampleSpec extends MultiNodeSpec(StatsSampleSpecConfig)
     "show usage of the statsService from one node" in within(15 seconds) {
       runOn(second) {
         val service = system.actorFor(node(third) / "user" / "statsService")
-        service ! StatsJob("this is the text that will be analyzed")
-        val meanWordLength = expectMsgPF() {
-          case StatsResult(meanWordLength) ⇒ meanWordLength
+        // eventually the service should be ok,
+        // worker nodes might not be up yet
+        awaitCond {
+          service ! StatsJob("this is the text that will be analyzed")
+          expectMsgPF() {
+            case unavailble: JobFailed ⇒ 
+            println("## JobFailed")
+            false
+            case StatsResult(meanWordLength) ⇒
+              meanWordLength must be(3.875 plusOrMinus 0.001)
+              true
+          }
         }
-        meanWordLength must be(3.875 plusOrMinus 0.001)
       }
 
       testConductor.enter("done-2")
@@ -129,10 +137,17 @@ abstract class StatsSampleSpec extends MultiNodeSpec(StatsSampleSpecConfig)
     "show usage of the statsService from all nodes" in within(15 seconds) {
       val service = system.actorFor(node(third) / "user" / "statsService")
       service ! StatsJob("this is the text that will be analyzed")
-      val meanWordLength = expectMsgPF() {
-        case StatsResult(meanWordLength) ⇒ meanWordLength
+      // eventually the service should be ok,
+      // worker nodes might not be up yet
+      awaitCond {
+        service ! StatsJob("this is the text that will be analyzed")
+        expectMsgPF() {
+          case unavailble: JobFailed ⇒ false
+          case StatsResult(meanWordLength) ⇒
+            meanWordLength must be(3.875 plusOrMinus 0.001)
+            true
+        }
       }
-      meanWordLength must be(3.875 plusOrMinus 0.001)
 
       testConductor.enter("done-3")
     }
