@@ -79,7 +79,7 @@ abstract class StatsSampleJapiSpec extends MultiNodeSpec(StatsSampleJapiSpecConf
       // FIXME 2654
       // statsWorker must be started on all nodes before the
       // statsService router is started and looks it up
-      //testConductor.enter("statsWorker-started")
+      testConductor.enter("statsWorker-started")
 
       system.actorOf(Props[StatsService], "statsService")
 
