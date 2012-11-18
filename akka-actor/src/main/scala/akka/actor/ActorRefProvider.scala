@@ -507,7 +507,7 @@ class LocalActorRefProvider(
         case "deadLetters" ⇒ deadLetters
         case other ⇒
           val result = extraNames.get(other).getOrElse(super.getSingleChild(other))
-          if (result == Nobody) println("## lookup of user guardian returned Nobody")
+          if (result == Nobody && !guardian.isTerminated) println("## lookup of user guardian returned Nobody")
           result
       }
     }
