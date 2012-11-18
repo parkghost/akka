@@ -71,7 +71,6 @@ abstract class StatsSampleSingleMasterJapiSpec extends MultiNodeSpec(StatsSample
       expectMsgClass(classOf[CurrentClusterState])
 
       Cluster(system) join node(first).address
-      system.actorOf(Props[StatsFacade], "statsFacade")
 
       expectMsgAllOf(
         MemberUp(Member(node(first).address, MemberStatus.Up)),
@@ -80,10 +79,12 @@ abstract class StatsSampleSingleMasterJapiSpec extends MultiNodeSpec(StatsSample
 
       Cluster(system).unsubscribe(testActor)
 
+      system.actorOf(Props[StatsFacade], "statsFacade")
+
       testConductor.enter("all-up")
     }
 
-    "show usage of the statsFacade" in within(15 seconds) {
+    "show usage of the statsFacade" in within(20 seconds) {
       val facade = system.actorFor(RootActorPath(node(third).address) / "user" / "statsFacade")
 
       // eventually the service should be ok,
@@ -91,7 +92,9 @@ abstract class StatsSampleSingleMasterJapiSpec extends MultiNodeSpec(StatsSample
       awaitCond {
         facade ! new StatsJob("this is the text that will be analyzed")
         expectMsgPF() {
-          case unavailble: JobFailed ⇒ false
+          case unavailble: JobFailed ⇒ 
+            println("## JobFailed")
+            false
           case r: StatsResult ⇒
             r.getMeanWordLength must be(3.875 plusOrMinus 0.001)
             true
