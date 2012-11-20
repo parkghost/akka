@@ -249,7 +249,7 @@ private[akka] class NettyRemoteTransport(_system: ExtendedActorSystem, _provider
       if (putIfAbsent && remoteClients.contains(remoteAddress)) false
       else {
         client.connect()
-        remoteClients.put(remoteAddress, client).foreach(_.shutdown())
+        remoteClients.put(remoteAddress, client).foreach { c ⇒ println("## bindClient shutting  down " + remoteAddress); c.shutdown() }
         true
       }
     } finally {
@@ -262,7 +262,7 @@ private[akka] class NettyRemoteTransport(_system: ExtendedActorSystem, _provider
     try {
       remoteClients foreach {
         case (k, v) ⇒
-          if (v.isBoundTo(remoteAddress)) { v.shutdown(); remoteClients.remove(k) }
+          if (v.isBoundTo(remoteAddress)) { println("## unbindClient shutting down " + remoteAddress); v.shutdown(); remoteClients.remove(k) }
       }
     } finally {
       clientsLock.writeLock().unlock()
@@ -273,7 +273,7 @@ private[akka] class NettyRemoteTransport(_system: ExtendedActorSystem, _provider
     clientsLock.writeLock().lock()
     try {
       remoteClients.remove(remoteAddress) match {
-        case Some(client) ⇒ client.shutdown()
+        case Some(client) ⇒ println("## shutDownClient shutting down " + remoteAddress); client.shutdown()
         case None         ⇒ false
       }
     } finally {

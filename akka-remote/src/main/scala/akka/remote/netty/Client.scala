@@ -193,7 +193,7 @@ private[akka] class ActiveRemoteClient private[akka] (
 
   // Please note that this method does _not_ remove the ARC from the NettyRemoteClientModule's map of clients
   def shutdown() = runSwitch switchOff {
-    log.debug("Shutting down remote client [{}]", name)
+    log.debug("Shutting down active remote client [{}]", name)
 
     notifyListeners(RemoteClientShutdown(netty, remoteAddress))
     try {
@@ -259,7 +259,7 @@ private[akka] class ActiveRemoteClientHandler(
     }
 
     e.getState match {
-      case READER_IDLE | ALL_IDLE ⇒ runOnceNow { client.netty.shutdownClientConnection(remoteAddress) }
+      case READER_IDLE | ALL_IDLE ⇒ runOnceNow { println("## IDLE shutting down " + remoteAddress); client.netty.shutdownClientConnection(remoteAddress) }
       case WRITER_IDLE            ⇒ e.getChannel.write(createHeartBeat(localAddress, client.netty.settings.SecureCookie))
     }
   }
@@ -270,7 +270,7 @@ private[akka] class ActiveRemoteClientHandler(
         case arp: AkkaRemoteProtocol if arp.hasInstruction ⇒
           val rcp = arp.getInstruction
           rcp.getCommandType match {
-            case CommandType.SHUTDOWN ⇒ runOnceNow { client.netty.shutdownClientConnection(remoteAddress) }
+            case CommandType.SHUTDOWN ⇒ runOnceNow { println("## SHUTDOWN shutting down " + remoteAddress); client.netty.shutdownClientConnection(remoteAddress) }
             case _                    ⇒ //Ignore others
           }
         case arp: AkkaRemoteProtocol if arp.hasMessage ⇒
@@ -293,6 +293,7 @@ private[akka] class ActiveRemoteClientHandler(
           }
       }, client.netty.settings.ReconnectDelay.toMillis, TimeUnit.MILLISECONDS)
     } else runOnceNow {
+      println("## channelClosed shutting down " + remoteAddress)
       client.netty.shutdownClientConnection(remoteAddress) // spawn in another thread
     }
   }
@@ -332,7 +333,7 @@ private[akka] class PassiveRemoteClient(val currentChannel: Channel,
   }
 
   def shutdown() = runSwitch switchOff {
-    log.debug("Shutting down remote client [{}]", name)
+    log.debug("Shutting down passive remote client [{}]", name)
 
     netty.notifyListeners(RemoteClientShutdown(netty, remoteAddress))
     log.debug("[{}] has been shut down", name)
