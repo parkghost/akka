@@ -572,10 +572,12 @@ class LocalActorRefProvider(
 
   def actorFor(ref: InternalActorRef, path: Iterable[String]): InternalActorRef =
     if (path.isEmpty) {
+      println("## Look-up of empty path sequence fails (per definition)")
       log.debug("look-up of empty path sequence fails (per definition)")
       deadLetters
     } else ref.getChild(path.iterator) match {
       case Nobody ⇒
+        println("## Look-up of path sequence [/" + path.mkString("/") + "] failed")
         log.debug("look-up of path sequence [/{}] failed", path.mkString("/"))
         new EmptyLocalActorRef(system.provider, ref.path / path, eventStream)
       case x ⇒ x

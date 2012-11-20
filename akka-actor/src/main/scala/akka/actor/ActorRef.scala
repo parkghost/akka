@@ -398,8 +398,8 @@ private[akka] object SerializedActorRef {
  */
 private[akka] trait MinimalActorRef extends InternalActorRef with LocalRef {
 
-  override def getParent: InternalActorRef = Nobody
-  override def getChild(names: Iterator[String]): InternalActorRef = if (names.forall(_.isEmpty)) this else Nobody
+  override def getParent: InternalActorRef = { println("## Parent Min Nobody " + path); Nobody }
+  override def getChild(names: Iterator[String]): InternalActorRef = if (names.forall(_.isEmpty)) this else { println("## Child Min Nobody " + path); Nobody }
 
   override def start(): Unit = ()
   override def suspend(): Unit = ()
