@@ -31,3 +31,14 @@ API changes to FSM and TestFSMRef
 The ``timerActive_?`` method has been deprecated in both the ``FSM`` trait and the ``TestFSMRef``
 class. You should now use the ``isTimerActive`` method instead. The old method will remain
 throughout 2.2.x. It will be removed in Akka 2.3.
+=================================
+
+
+ZeroMQ ByteString
+=================
+
+``akka.zeromq.Frame`` and the use of ``Seq[Byte]`` in the API has been removed and is replaced by ``akka.util.ByteString``.
+
+``ZMQMessage.firstFrameAsString`` has been removed, please use ``ZMQMessage.frames`` or ``ZMQMessage.frame(int)`` to access the frames.
+
+=================

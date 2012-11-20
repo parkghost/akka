@@ -41,7 +41,7 @@ sealed trait SocketConnectOption extends SocketOption {
  * A base trait for pubsub options for the ZeroMQ socket
  */
 sealed trait PubSubOption extends SocketOption {
-  def payload: immutable.Seq[Byte]
+  def payload: ByteString
 }
 
 /**
@@ -177,12 +177,15 @@ case class Bind(endpoint: String) extends SocketConnectOption
  *
  * @param payload the topic to subscribe to
  */
-case class Subscribe(payload: immutable.Seq[Byte]) extends PubSubOption {
-  def this(topic: String) = this(topic.getBytes("UTF-8").to[immutable.Seq])
+case class Subscribe(payload: ByteString) extends PubSubOption {
+  def this(topic: String) = this(ByteString(topic))
 }
 object Subscribe {
-  def apply(topic: String): Subscribe = new Subscribe(topic)
-  val all = Subscribe("")
+  val all = Subscribe(ByteString.empty)
+  def apply(topic: String): Subscribe = topic match {
+    case null | "" ⇒ all
+    case t         ⇒ new Subscribe(t)
+  }
 }
 
 /**
@@ -194,8 +197,8 @@ object Subscribe {
  *
  * @param payload
  */
-case class Unsubscribe(payload: immutable.Seq[Byte]) extends PubSubOption {
-  def this(topic: String) = this(topic.getBytes("UTF-8").to[immutable.Seq])
+case class Unsubscribe(payload: ByteString) extends PubSubOption {
+  def this(topic: String) = this(ByteString(topic))
 }
 object Unsubscribe {
   def apply(topic: String): Unsubscribe = new Unsubscribe(topic)
