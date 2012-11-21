@@ -38,7 +38,7 @@ abstract class MultiNodeConfig {
   /**
    * Register a common base config for all test participants, if so desired.
    */
-  def commonConfig(config: Config): Unit = { println("## setting up common conf"); _commonConf = Some(config) }
+  def commonConfig(config: Config): Unit = _commonConf = Some(config)
 
   /**
    * Register a config override for a specific participant.
@@ -99,18 +99,12 @@ abstract class MultiNodeConfig {
   }
 
   private[testkit] def config: Config = {
-    println("## About to read config")
     val transportConfig =
       if (_testTransport) ConfigFactory.parseString("akka.remote.transport=" + classOf[TestConductorTransport].getName)
       else ConfigFactory.empty
 
     val configs = (_nodeConf get myself).toList ::: _commonConf.toList ::: transportConfig :: MultiNodeSpec.nodeConfig :: MultiNodeSpec.baseConfig :: Nil
-    println("## About to merge configs")
-    println(configs)
-    val alles = configs reduceLeft (_ withFallback _)
-    println("## Merged config")
-    println(alles)
-    alles
+    configs reduceLeft (_ withFallback _)
   }
 
   private[testkit] def deployments(node: RoleName): immutable.Seq[String] = (_deployments get node getOrElse Nil) ++ _allDeploy

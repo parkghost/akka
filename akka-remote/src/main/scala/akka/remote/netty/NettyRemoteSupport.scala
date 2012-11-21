@@ -243,10 +243,10 @@ private[akka] class NettyRemoteTransport(_system: ExtendedActorSystem, _provider
     }
   }
 
-  def bindClient(remoteAddress: Address, client: RemoteClient, putIfAbsent: Boolean = false): Boolean = {
+  def bindClient(remoteAddress: Address, client: RemoteClient): Boolean = {
     clientsLock.writeLock().lock()
     try {
-      if (putIfAbsent && remoteClients.contains(remoteAddress)) false
+      if (remoteClients.contains(remoteAddress)) false
       else {
         client.connect()
         remoteClients.put(remoteAddress, client).foreach { c ⇒ println("## bindClient shutting  down " + remoteAddress); c.shutdown() }
@@ -257,17 +257,7 @@ private[akka] class NettyRemoteTransport(_system: ExtendedActorSystem, _provider
     }
   }
 
-  def unbindClient(remoteAddress: Address): Unit = {
-    clientsLock.writeLock().lock()
-    try {
-      remoteClients foreach {
-        case (k, v) ⇒
-          if (v.isBoundTo(remoteAddress)) { println("## unbindClient shutting down " + remoteAddress); v.shutdown(); remoteClients.remove(k) }
-      }
-    } finally {
-      clientsLock.writeLock().unlock()
-    }
-  }
+  def unbindClient(remoteAddress: Address): Unit = shutdownClientConnection(remoteAddress)
 
   def shutdownClientConnection(remoteAddress: Address): Boolean = {
     clientsLock.writeLock().lock()
