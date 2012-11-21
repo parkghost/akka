@@ -168,6 +168,7 @@ private[akka] class ActiveRemoteClient private[akka] (
       bootstrap = b
 
       val remoteIP = InetAddress.getByName(remoteAddress.host.get)
+      println("## Starting active remote client connection to " + remoteAddress + "|" + remoteIP)
       log.debug("Starting remote client connection to [{}|{}]", remoteAddress, remoteIP)
 
       connection = bootstrap.connect(new InetSocketAddress(remoteIP, remoteAddress.port.get))
@@ -185,6 +186,7 @@ private[akka] class ActiveRemoteClient private[akka] (
     } match {
       case true ⇒ true
       case false if reconnectIfAlreadyConnected ⇒
+        println("## Reconnecting active remote client reconnecting to " + remoteAddress)
         log.debug("Remote client reconnecting to [{}]", remoteAddress)
         attemptReconnect()
       case false ⇒ false
@@ -193,7 +195,8 @@ private[akka] class ActiveRemoteClient private[akka] (
 
   // Please note that this method does _not_ remove the ARC from the NettyRemoteClientModule's map of clients
   def shutdown() = runSwitch switchOff {
-    log.debug("Shutting down active remote client [{}]", name)
+    println("## Shutting down active remote client reconnecting to " + remoteAddress)
+    log.debug("Shutting down remote client [{}]", name)
 
     notifyListeners(RemoteClientShutdown(netty, remoteAddress))
     try {
@@ -329,11 +332,13 @@ private[akka] class PassiveRemoteClient(val currentChannel: Channel,
 
   def connect(reconnectIfAlreadyConnected: Boolean = false): Boolean = runSwitch switchOn {
     netty.notifyListeners(RemoteClientStarted(netty, remoteAddress))
+    println("## Starting passive remote client connection to " + remoteAddress)
     log.debug("Starting remote client connection to [{}]", remoteAddress)
   }
 
   def shutdown() = runSwitch switchOff {
-    log.debug("Shutting down passive remote client [{}]", name)
+    println("## Shutting down passive remote client connection to " + remoteAddress)
+    log.debug("Shutting down remote client [{}]", name)
 
     netty.notifyListeners(RemoteClientShutdown(netty, remoteAddress))
     log.debug("[{}] has been shut down", name)

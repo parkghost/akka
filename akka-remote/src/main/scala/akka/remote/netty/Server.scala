@@ -157,9 +157,10 @@ private[akka] class RemoteServerHandler(
             ChannelAddress.set(event.getChannel, Option(inbound))
 
             //If we want to reuse the inbound connections as outbound we need to get busy
-            if (settings.UsePassiveConnections)
+            if (settings.UsePassiveConnections) {
+              println("## Received a CONNECT from " + inbound)
               netty.bindClient(inbound, new PassiveRemoteClient(event.getChannel, netty, inbound))
-
+            }
             netty.notifyListeners(RemoteServerClientConnected(netty, Option(inbound)))
           case CommandType.SHUTDOWN  ⇒ //Will be unbound in channelClosed
           case CommandType.HEARTBEAT ⇒ //Other guy is still alive
