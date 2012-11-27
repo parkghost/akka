@@ -115,6 +115,7 @@ private[cluster] object InternalClusterAction {
 
   case class PublishChanges(oldGossip: Gossip, newGossip: Gossip)
   case class PublishEvent(event: ClusterDomainEvent)
+  case object PublishStart
   case object PublishDone
 
 }
@@ -274,9 +275,10 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
       val localGossip = latestGossip
       // wipe our state since a node that joins a cluster must be empty
       latestGossip = Gossip()
-
       // wipe the failure detector since we are starting fresh and shouldn't care about the past
       failureDetector.reset()
+      // wipe the publisher since we are starting fresh
+      publisher ! PublishStart
 
       publish(localGossip)
       heartbeatSender ! JoinInProgress(address, Deadline.now + JoinTimeout)
@@ -301,7 +303,6 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
     val isUnreachable = localGossip.overview.isNonDownUnreachable(node)
 
     if (!alreadyMember && !isUnreachable) {
-
       // remove the node from the 'unreachable' set in case it is a DOWN node that is rejoining cluster
       val (rejoiningMember, newUnreachableMembers) = localUnreachable partition { _.address == node }
       val newOverview = localGossip.overview copy (unreachable = newUnreachableMembers)

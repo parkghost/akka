@@ -140,7 +140,7 @@ abstract class TransitionSpec
       runOn(leader(first, second)) {
         leaderActions()
         awaitMemberStatus(first, Up)
-        awaitMemberStatus(second, Up)
+        awaitMemberStatus(second, Joining)
       }
       enterBarrier("leader-actions-2")
 
@@ -163,8 +163,6 @@ abstract class TransitionSpec
       }
       runOn(second, third) {
         // gossip chat from the join will synchronize the views
-        awaitMembers(first, second, third)
-        awaitMemberStatus(third, Joining)
         awaitCond(seenLatestGossip == Set(second, third))
         clusterView.convergence must be(false)
       }
@@ -196,14 +194,14 @@ abstract class TransitionSpec
         leaderActions()
         awaitMemberStatus(first, Up)
         awaitMemberStatus(second, Up)
-        awaitMemberStatus(third, Up)
+        awaitMemberStatus(third, Joining)
       }
       enterBarrier("leader-actions-3")
 
       // leader gossipTo first non-leader
       leader(first, second, third) gossipTo nonLeader(first, second, third).head
       runOn(nonLeader(first, second, third).head) {
-        awaitMemberStatus(third, Up)
+        awaitMemberStatus(third, Joining)
         awaitCond(seenLatestGossip == Set(leader(first, second, third), myself))
         clusterView.convergence must be(false)
       }
@@ -252,7 +250,6 @@ abstract class TransitionSpec
 
       runOn(first) {
         cluster.down(second)
-        awaitMemberStatus(second, Down)
       }
 
       enterBarrier("after-second-down")
