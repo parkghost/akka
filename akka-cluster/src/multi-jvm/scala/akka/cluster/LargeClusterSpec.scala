@@ -298,7 +298,7 @@ abstract class LargeClusterSpec
               case state: CurrentClusterState ⇒
                 gotUnreachable = state.unreachable
                 checkDone()
-              case MemberUnreachable(m) if !latch.isOpen ⇒
+              case UnreachableMember(m) if !latch.isOpen ⇒
                 gotUnreachable = gotUnreachable + m
                 checkDone()
               case MemberDowned(m) if !latch.isOpen ⇒

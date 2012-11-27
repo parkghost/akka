@@ -112,7 +112,7 @@ private[cluster] final class ClusterHeartbeatSender extends Actor with ActorLogg
   def receive = {
     case HeartbeatTick          ⇒ heartbeat()
     case s: CurrentClusterState ⇒ reset(s)
-    case MemberUnreachable(m)   ⇒ removeMember(m)
+    case UnreachableMember(m)   ⇒ removeMember(m)
     case MemberRemoved(m)       ⇒ removeMember(m)
     case e: MemberEvent         ⇒ addMember(e.member)
     case JoinInProgress(a, d)   ⇒ addJoinInProgress(a, d)
