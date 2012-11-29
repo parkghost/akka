@@ -45,24 +45,25 @@ private[akka] class ClusterReadView(cluster: Cluster) extends Closeable {
       override def postStop(): Unit = cluster.unsubscribe(self)
 
       def receive = {
-        case SeenChanged(convergence, seenBy) ⇒
-          state = state.copy(convergence = convergence, seenBy = seenBy)
-        case MemberRemoved(member) ⇒
-          state = state.copy(members = state.members - member, unreachable = state.unreachable - member)
-        case UnreachableMember(member) ⇒
-          // replace current member with new member (might have different status, only address is used in equals)
-          state = state.copy(members = state.members - member, unreachable = state.unreachable - member + member)
-        case MemberDowned(member) ⇒
-          // replace current member with new member (might have different status, only address is used in equals)
-          state = state.copy(members = state.members - member, unreachable = state.unreachable - member + member)
-        case event: MemberEvent ⇒
-          // replace current member with new member (might have different status, only address is used in equals)
-          state = state.copy(members = state.members - event.member + event.member)
-        case LeaderChanged(leader)        ⇒ state = state.copy(leader = leader)
-        case s: CurrentClusterState       ⇒ state = s
-        case CurrentInternalStats(stats)  ⇒ _latestStats = stats
-        case ClusterMetricsChanged(nodes) ⇒ _clusterMetrics = nodes
-        case _                            ⇒ // ignore, not interesting
+        case e: ClusterDomainEvent ⇒ e match {
+          case SeenChanged(convergence, seenBy) ⇒
+            state = state.copy(convergence = convergence, seenBy = seenBy)
+          case MemberRemoved(member) ⇒
+            state = state.copy(members = state.members - member, unreachable = state.unreachable - member)
+          case UnreachableMember(member) ⇒
+            // replace current member with new member (might have different status, only address is used in equals)
+            state = state.copy(members = state.members - member, unreachable = state.unreachable - member + member)
+          case MemberDowned(member) ⇒
+            // replace current member with new member (might have different status, only address is used in equals)
+            state = state.copy(members = state.members - member, unreachable = state.unreachable - member + member)
+          case event: MemberEvent ⇒
+            // replace current member with new member (might have different status, only address is used in equals)
+            state = state.copy(members = state.members - event.member + event.member)
+          case LeaderChanged(leader)        ⇒ state = state.copy(leader = leader)
+          case s: CurrentClusterState       ⇒ state = s
+          case CurrentInternalStats(stats)  ⇒ _latestStats = stats
+          case ClusterMetricsChanged(nodes) ⇒ _clusterMetrics = nodes
+        }
       }
     }).withDispatcher(cluster.settings.UseDispatcher), name = "clusterEventBusListener")
   }
