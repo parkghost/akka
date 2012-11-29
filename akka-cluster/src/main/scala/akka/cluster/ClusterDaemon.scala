@@ -113,11 +113,11 @@ private[cluster] object InternalClusterAction {
    */
   case class PublishCurrentClusterState(receiver: Option[ActorRef]) extends SubscriptionMessage
 
-  case class PublishChanges(oldGossip: Gossip, newGossip: Gossip)
+  case class PublishChanges(newGossip: Gossip)
   case class PublishEvent(event: ClusterDomainEvent)
   case object PublishStart
   case object PublishDone
-
+  case object PublishDoneFinished
 }
 
 /**
@@ -272,7 +272,6 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
    */
   def join(address: Address): Unit = {
     if (!latestGossip.members.exists(_.address == address)) {
-      val localGossip = latestGossip
       // wipe our state since a node that joins a cluster must be empty
       latestGossip = Gossip()
       // wipe the failure detector since we are starting fresh and shouldn't care about the past
@@ -280,7 +279,7 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
       // wipe the publisher since we are starting fresh
       publisher ! PublishStart
 
-      publish(localGossip)
+      publish(latestGossip)
       heartbeatSender ! JoinInProgress(address, Deadline.now + JoinTimeout)
 
       context.become(initialized)
@@ -327,7 +326,7 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
         gossipTo(node)
       }
 
-      publish(localGossip)
+      publish(latestGossip)
     }
   }
 
@@ -346,7 +345,7 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
       latestGossip = seenVersionedGossip
 
       log.info("Cluster Node [{}] - Marked address [{}] as LEAVING", selfAddress, address)
-      publish(localGossip)
+      publish(latestGossip)
     }
   }
 
@@ -369,10 +368,9 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
    */
   def removing(address: Address): Unit = {
     log.info("Cluster Node [{}] - Node has been REMOVED by the leader - shutting down...", selfAddress)
-    val localGossip = latestGossip
     // just cleaning up the gossip state
     latestGossip = Gossip()
-    publish(localGossip)
+    publish(latestGossip)
     context.become(removed)
     // make sure the final (removed) state is published
     // before shutting down
@@ -427,7 +425,7 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
     val versionedGossip = newGossip :+ vclockNode
     latestGossip = versionedGossip seen selfAddress
 
-    publish(localGossip)
+    publish(latestGossip)
   }
 
   /**
@@ -516,7 +514,7 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
         }
 
         stats = stats.incrementReceivedGossipCount
-        publish(localGossip)
+        publish(latestGossip)
 
         if (envelope.conversation &&
           (conflict || (winningGossip ne remoteGossip) || (latestGossip ne remoteGossip))) {
@@ -716,7 +714,7 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
           log.info("Cluster Node [{}] - Leader is marking unreachable node [{}] as DOWN", selfAddress, member.address)
         }
 
-        publish(localGossip)
+        publish(latestGossip)
       }
     }
   }
@@ -753,7 +751,7 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
 
         log.error("Cluster Node [{}] - Marking node(s) as UNREACHABLE [{}]", selfAddress, newlyDetectedUnreachableMembers.mkString(", "))
 
-        publish(localGossip)
+        publish(latestGossip)
       }
     }
   }
@@ -791,8 +789,8 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
   def gossipTo(address: Address, gossipMsg: GossipEnvelope): Unit = if (address != selfAddress)
     coreSender ! SendClusterMessage(address, gossipMsg)
 
-  def publish(oldGossip: Gossip): Unit = {
-    publisher ! PublishChanges(oldGossip, latestGossip)
+  def publish(newGossip: Gossip): Unit = {
+    publisher ! PublishChanges(newGossip)
     if (PublishStatsInterval == Duration.Zero) publishInternalStats()
   }
 

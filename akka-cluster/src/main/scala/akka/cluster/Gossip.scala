@@ -153,8 +153,7 @@ private[cluster] case class Gossip(
     def seenSame: Boolean =
       if (seen.isEmpty) {
         // if both seen and members are empty, then every(no)body has seen the same thing
-        if (members.isEmpty) true
-        else false
+        members.isEmpty
       } else {
         val values = seen.values
         val seenHead = values.head

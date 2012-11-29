@@ -30,6 +30,12 @@ class ClusterDomainEventSpec extends WordSpec with MustMatchers {
 
   "Domain events" must {
 
+    "be empty for the same gossip" in {
+      val g1 = Gossip(members = SortedSet(a1))
+
+      diff(g1, g1).isEmpty must be(true)
+    }
+
     "be produced for new members" in {
       val g1 = Gossip(members = SortedSet(a1))
       val g2 = Gossip(members = SortedSet(a1, b1, e1))
