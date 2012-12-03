@@ -32,7 +32,6 @@ object ClusterEvent {
   case class CurrentClusterState(
     members: SortedSet[Member] = SortedSet.empty,
     unreachable: Set[Member] = Set.empty,
-    convergence: Boolean = false,
     seenBy: Set[Address] = Set.empty,
     leader: Option[Address] = None) extends ClusterDomainEvent {
 
@@ -160,41 +159,18 @@ object ClusterEvent {
   private[cluster] def diff(oldGossip: Gossip, newGossip: Gossip): immutable.Seq[ClusterDomainEvent] =
     if (newGossip eq oldGossip) immutable.Seq.empty
     else {
-      val newMembers = newGossip.members -- oldGossip.members
-
-      val membersGroupedByAddress = (newGossip.members.toList ++ oldGossip.members.toList).groupBy(_.address)
-      val changedMembers = membersGroupedByAddress collect {
-        case (_, newMember :: oldMember :: Nil) if newMember.status != oldMember.status ⇒ newMember
-      }
-
-      val memberEvents = (newMembers ++ changedMembers) map { m ⇒
-        if (m.status == Joining) MemberJoined(m)
-        else if (m.status == Up) MemberUp(m)
-        else if (m.status == Leaving) MemberLeft(m)
-        else if (m.status == Exiting) MemberExited(m)
-        else throw new IllegalStateException("Unexpected member status: " + m)
-      }
-
       val allNewUnreachable = newGossip.overview.unreachable -- oldGossip.overview.unreachable
       val (newDowned, newUnreachable) = allNewUnreachable partition { _.status == Down }
       val downedEvents = newDowned map MemberDowned
       val unreachableEvents = newUnreachable map UnreachableMember
 
       val unreachableGroupedByAddress =
-        (newGossip.overview.unreachable.toList ++ oldGossip.overview.unreachable.toList).groupBy(_.address)
+        List(newGossip.overview.unreachable, oldGossip.overview.unreachable).flatten.groupBy(_.address)
       val unreachableDownMembers = unreachableGroupedByAddress collect {
         case (_, newMember :: oldMember :: Nil) if newMember.status == Down && newMember.status != oldMember.status ⇒
           newMember
       }
       val unreachableDownedEvents = unreachableDownMembers map MemberDowned
-
-      val removedEvents = (oldGossip.members -- newGossip.members -- newGossip.overview.unreachable) map { m ⇒
-        MemberRemoved(m.copy(status = Removed))
-      }
-
-      val leaderEvents =
-        if (newGossip.leader != oldGossip.leader) Seq(LeaderChanged(newGossip.leader))
-        else Seq.empty
 
       val newConvergence = newGossip.convergence
       val newSeenBy = newGossip.seenBy
@@ -202,9 +178,41 @@ object ClusterEvent {
         if (newConvergence != oldGossip.convergence || newSeenBy != oldGossip.seenBy) Seq(SeenChanged(newConvergence, newSeenBy))
         else Seq.empty
 
-      (new VectorBuilder[ClusterDomainEvent]() ++= memberEvents ++= unreachableEvents ++= downedEvents ++= unreachableDownedEvents ++=
-        removedEvents ++= leaderEvents ++= seenEvents).result()
+      (new VectorBuilder[ClusterDomainEvent]() ++= unreachableEvents ++= downedEvents ++= unreachableDownedEvents ++=
+        seenEvents).result()
     }
+
+  /**
+   * INTERNAL API.
+   */
+  private[cluster] def diffConverged(oldGossip: Gossip, newGossip: Gossip): immutable.Seq[ClusterDomainEvent] =
+    if ((newGossip eq oldGossip) || oldGossip.convergence == false || newGossip.convergence == false) immutable.Seq.empty
+    else {
+      val newMembers = newGossip.members -- oldGossip.members
+      val bothOld: SortedSet[Member] = oldGossip.members.intersect(newGossip.members)
+      val bothNew: SortedSet[Member] = newGossip.members.intersect(bothOld)
+      val changedMembers = (bothOld zip bothNew) collect { case (o, n) if o.status != n.status ⇒ n }
+      val memberEvents = (newMembers ++ changedMembers) map { m ⇒
+        m.status match {
+          case Joining ⇒ MemberJoined(m)
+          case Up      ⇒ MemberUp(m)
+          case Leaving ⇒ MemberLeft(m)
+          case Exiting ⇒ MemberExited(m)
+          case _       ⇒ throw new IllegalStateException("Unexpected member status: " + m)
+        }
+      }
+
+      val leaderEvents =
+        if (newGossip.leader != oldGossip.leader) Seq(LeaderChanged(newGossip.leader))
+        else Seq.empty
+
+      val removedEvents = (oldGossip.members -- newGossip.members -- newGossip.overview.unreachable) map { m ⇒
+        MemberRemoved(m.copy(status = Removed))
+      }
+
+      (new VectorBuilder[ClusterDomainEvent]() ++= memberEvents ++= leaderEvents ++= removedEvents).result()
+    }
+
 }
 
 /**
@@ -237,7 +245,6 @@ private[cluster] final class ClusterDomainEventPublisher extends Actor with Acto
     val state = CurrentClusterState(
       members = latestConvergedGossip.members,
       unreachable = latestGossip.overview.unreachable,
-      convergence = latestGossip.convergence,
       seenBy = latestGossip.seenBy,
       leader = latestConvergedGossip.leader)
     receiver match {
@@ -263,19 +270,10 @@ private[cluster] final class ClusterDomainEventPublisher extends Actor with Acto
     val convergedGossip = latestConvergedGossip
     if (newGossip.convergence) latestConvergedGossip = newGossip
     // first publish the converged diff if there is one
-    diff(convergedGossip, latestConvergedGossip) foreach { event ⇒
-      event match {
-        case _: LeaderChanged | _: MemberEvent ⇒
-          publish(event)
-        case _ ⇒
-        // all other events are taken care of below
-      }
-    }
+    diffConverged(convergedGossip, latestConvergedGossip) foreach { publish(_) }
     // then publish the diff between the last two gossips
     diff(oldGossip, newGossip) foreach { event ⇒
       event match {
-        case _: LeaderChanged | _: MemberEvent ⇒
-        // only on convergence
         case UnreachableMember(m) ⇒
           publish(event)
           // notify DeathWatch about unreachable node

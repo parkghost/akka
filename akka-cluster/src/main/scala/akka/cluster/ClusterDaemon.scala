@@ -113,11 +113,12 @@ private[cluster] object InternalClusterAction {
    */
   case class PublishCurrentClusterState(receiver: Option[ActorRef]) extends SubscriptionMessage
 
-  case class PublishChanges(newGossip: Gossip)
-  case class PublishEvent(event: ClusterDomainEvent)
-  case object PublishStart
-  case object PublishDone
-  case object PublishDoneFinished
+  sealed trait PublishMessage
+  case class PublishChanges(newGossip: Gossip) extends PublishMessage
+  case class PublishEvent(event: ClusterDomainEvent) extends PublishMessage
+  case object PublishStart extends PublishMessage
+  case object PublishDone extends PublishMessage
+  case object PublishDoneFinished extends PublishMessage
 }
 
 /**
