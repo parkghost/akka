@@ -180,7 +180,7 @@ class ResizerSpec extends AkkaSpec(ResizerSpec.config) with DefaultTimeout with 
         upperBound = 5,
         rampupRate = 1.0,
         backoffRate = 1.0,
-        backoffThreshold = 0.20,
+        backoffThreshold = 0.10,
         pressureThreshold = 1,
         messagesPerResize = 1)
 
