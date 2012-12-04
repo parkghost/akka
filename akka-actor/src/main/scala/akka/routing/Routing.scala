@@ -1384,6 +1384,8 @@ case class DefaultResizer(
     val currentRoutees = routeeProvider.routees
     val requestedCapacity = capacity(currentRoutees)
 
+    println("# resize currentRoutees: " + currentRoutees.size + " requestedCapacity: " + requestedCapacity)
+
     if (requestedCapacity > 0) routeeProvider.createRoutees(requestedCapacity)
     else if (requestedCapacity < 0) routeeProvider.removeRoutees(-requestedCapacity, stopDelay)
   }
