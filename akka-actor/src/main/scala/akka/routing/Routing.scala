@@ -1464,8 +1464,12 @@ case class DefaultResizer(
    * @param capacity the current number of total routees
    * @return proposed increase in capacity
    */
-  def rampup(pressure: Int, capacity: Int): Int =
-    if (pressure < capacity) 0 else math.ceil(rampupRate * capacity) toInt
+  def rampup(pressure: Int, capacity: Int): Int = {
+    val result = if (pressure < capacity) 0 else math.ceil(rampupRate * capacity) toInt
+
+    println("#  rampup pressure: " + pressure + " capacity: " + capacity + " ==> " + result)
+    result
+  }
 
   /**
    * Computes a proposed negative (or zero) capacity delta using
@@ -1474,10 +1478,14 @@ case class DefaultResizer(
    * @param capacity the current number of total routees
    * @return proposed decrease in capacity (as a negative number)
    */
-  def backoff(pressure: Int, capacity: Int): Int =
-    if (backoffThreshold > 0.0 && backoffRate > 0.0 && capacity > 0 && pressure.toDouble / capacity < backoffThreshold)
+  def backoff(pressure: Int, capacity: Int): Int = {
+    val result = if (backoffThreshold > 0.0 && backoffRate > 0.0 && capacity > 0 && pressure.toDouble / capacity < backoffThreshold)
       math.floor(-1.0 * backoffRate * capacity) toInt
     else 0
+
+    println("#  backoff pressure: " + pressure + " capacity: " + capacity + " ==> " + result)
+    result
+  }
 
 }
 
