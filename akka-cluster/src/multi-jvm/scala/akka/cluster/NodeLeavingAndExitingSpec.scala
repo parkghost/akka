@@ -50,13 +50,17 @@ abstract class NodeLeavingAndExitingSpec
         cluster.subscribe(system.actorOf(Props(new Actor {
           def receive = {
             case state: CurrentClusterState ⇒
-              if (state.members.exists(m ⇒ m.address == secondAddess && m.status == Leaving))
+              if (state.members.exists(m ⇒ m.address == secondAddess && m.status == Leaving)) {
+                log.error("MemberLeft   : {}", state)
                 leavingLatch.countDown()
-              if (state.members.exists(m ⇒ m.address == secondAddess && m.status == Exiting))
+              }
+              if (state.members.exists(m ⇒ m.address == secondAddess && m.status == Exiting)) {
+                log.error("MemberExited : {}", state)
                 exitingLatch.countDown()
-            case MemberLeft(m) if m.address == secondAddess   ⇒ leavingLatch.countDown()
-            case MemberExited(m) if m.address == secondAddess ⇒ exitingLatch.countDown()
-            case MemberRemoved(m)                             ⇒ // not tested here
+              }
+            case MemberLeft(m) if m.address == secondAddess   ⇒ log.error("MemberLeft   : {}", m); leavingLatch.countDown()
+            case MemberExited(m) if m.address == secondAddess ⇒ log.error("MemberExited : {}", m); exitingLatch.countDown()
+            case MemberRemoved(m)                             ⇒ log.error("MemberRemoved: {}", m) // not tested here
 
           }
         })), classOf[MemberEvent])
@@ -70,9 +74,11 @@ abstract class NodeLeavingAndExitingSpec
         val expectedAddresses = roles.toSet map address
         awaitCond(clusterView.members.map(_.address) == expectedAddresses)
 
+        println(">>> About to wait for leaving")
         // Verify that 'second' node is set to LEAVING
         leavingLatch.await
 
+        println(">>> About to wait for exiting")
         // Verify that 'second' node is set to EXITING
         exitingLatch.await
 
