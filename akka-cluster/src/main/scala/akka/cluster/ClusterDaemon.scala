@@ -295,17 +295,16 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
    * State transition to JOINING - new node joining.
    */
   def joining(node: Address): Unit = {
-    val localGossip = latestGossip
-    val localMembers = localGossip.members
-    val localUnreachable = localGossip.overview.unreachable
+    val localMembers = latestGossip.members
+    val localUnreachable = latestGossip.overview.unreachable
 
     val alreadyMember = localMembers.exists(_.address == node)
-    val isUnreachable = localGossip.overview.isNonDownUnreachable(node)
+    val isUnreachable = latestGossip.overview.isNonDownUnreachable(node)
 
     if (!alreadyMember && !isUnreachable) {
       // remove the node from the 'unreachable' set in case it is a DOWN node that is rejoining cluster
       val (rejoiningMember, newUnreachableMembers) = localUnreachable partition { _.address == node }
-      val newOverview = localGossip.overview copy (unreachable = newUnreachableMembers)
+      val newOverview = latestGossip.overview copy (unreachable = newUnreachableMembers)
 
       // remove the node from the failure detector if it is a DOWN node that is rejoining cluster
       if (rejoiningMember.nonEmpty) failureDetector.remove(node)
@@ -313,7 +312,7 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
       // add joining node as Joining
       // add self in case someone else joins before self has joined (Set discards duplicates)
       val newMembers = localMembers + Member(node, Joining) + Member(selfAddress, Joining)
-      val newGossip = localGossip copy (overview = newOverview, members = newMembers)
+      val newGossip = latestGossip copy (overview = newOverview, members = newMembers)
 
       val versionedGossip = newGossip :+ vclockNode
       val seenVersionedGossip = versionedGossip seen selfAddress
@@ -335,10 +334,9 @@ private[cluster] final class ClusterCoreDaemon(publisher: ActorRef) extends Acto
    * State transition to LEAVING.
    */
   def leaving(address: Address): Unit = {
-    val localGossip = latestGossip
-    if (localGossip.members.exists(_.address == address)) { // only try to update if the node is available (in the member ring)
-      val newMembers = localGossip.members map { member ⇒ if (member.address == address) Member(address, Leaving) else member } // mark node as LEAVING
-      val newGossip = localGossip copy (members = newMembers)
+    if (latestGossip.members.exists(_.address == address)) { // only try to update if the node is available (in the member ring)
+      val newMembers = latestGossip.members map { member ⇒ if (member.address == address) Member(address, Leaving) else member } // mark node as LEAVING
+      val newGossip = latestGossip copy (members = newMembers)
 
       val versionedGossip = newGossip :+ vclockNode
       val seenVersionedGossip = versionedGossip seen selfAddress

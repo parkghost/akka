@@ -189,9 +189,10 @@ object ClusterEvent {
     if ((newGossip eq oldGossip) || oldGossip.convergence == false || newGossip.convergence == false) immutable.Seq.empty
     else {
       val newMembers = newGossip.members -- oldGossip.members
-      val bothOld: SortedSet[Member] = oldGossip.members.intersect(newGossip.members)
-      val bothNew: SortedSet[Member] = newGossip.members.intersect(bothOld)
-      val changedMembers = (bothOld zip bothNew) collect { case (o, n) if o.status != n.status ⇒ n }
+      val membersGroupedByAddress = List(newGossip.members, oldGossip.members).flatten.groupBy(_.address)
+      val changedMembers = membersGroupedByAddress collect {
+        case (_, newMember :: oldMember :: Nil) if newMember.status != oldMember.status ⇒ newMember
+      }
       val memberEvents = (newMembers ++ changedMembers) map { m ⇒
         m.status match {
           case Joining ⇒ MemberJoined(m)
