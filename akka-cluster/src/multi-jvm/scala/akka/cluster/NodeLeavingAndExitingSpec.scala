@@ -19,7 +19,7 @@ object NodeLeavingAndExitingMultiJvmSpec extends MultiNodeConfig {
   val third = role("third")
 
   commonConfig(
-    debugConfig(on = false)
+    debugConfig(on = true)
       .withFallback(ConfigFactory.parseString("""
           # turn off unreachable reaper
           akka.cluster.unreachable-nodes-reaper-interval = 300 s""")
