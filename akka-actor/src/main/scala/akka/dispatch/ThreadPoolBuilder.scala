@@ -100,7 +100,10 @@ case class ThreadPoolConfig(allowCorePoolTimeout: Boolean = ThreadPoolConfig.def
 }
 
 object ThreadPoolConfigBuilder {
-  def conf_?[T](opt: Option[T])(fun: (T) ⇒ ThreadPoolConfigBuilder ⇒ ThreadPoolConfigBuilder): Option[(ThreadPoolConfigBuilder) ⇒ ThreadPoolConfigBuilder] = opt map fun
+  @deprecated("Use configure instead", "2.2")
+  def conf_?[T](opt: Option[T])(fun: (T) ⇒ ThreadPoolConfigBuilder ⇒ ThreadPoolConfigBuilder): Option[(ThreadPoolConfigBuilder) ⇒ ThreadPoolConfigBuilder] = configure(opt)(fun)
+
+  def configure[T](opt: Option[T])(fun: (T) ⇒ ThreadPoolConfigBuilder ⇒ ThreadPoolConfigBuilder): Option[(ThreadPoolConfigBuilder) ⇒ ThreadPoolConfigBuilder] = opt map fun
 }
 
 /**

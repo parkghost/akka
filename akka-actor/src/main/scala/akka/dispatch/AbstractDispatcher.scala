@@ -450,7 +450,7 @@ abstract class MessageDispatcherConfigurator(val config: Config, val prerequisit
 }
 
 class ThreadPoolExecutorConfigurator(config: Config, prerequisites: DispatcherPrerequisites) extends ExecutorServiceConfigurator(config, prerequisites) {
-  import ThreadPoolConfigBuilder.conf_?
+  import ThreadPoolConfigBuilder.configure
 
   val threadPoolConfig: ThreadPoolConfig = createThreadPoolConfigBuilder(config, prerequisites).config
 
@@ -461,7 +461,7 @@ class ThreadPoolExecutorConfigurator(config: Config, prerequisites: DispatcherPr
       .setCorePoolSizeFromFactor(config getInt "core-pool-size-min", config getDouble "core-pool-size-factor", config getInt "core-pool-size-max")
       .setMaxPoolSizeFromFactor(config getInt "max-pool-size-min", config getDouble "max-pool-size-factor", config getInt "max-pool-size-max")
       .configure(
-        conf_?(Some(config getInt "task-queue-size") flatMap {
+        configure(Some(config getInt "task-queue-size") flatMap {
           case size if size > 0 ⇒
             Some(config getString "task-queue-type") map {
               case "array"       ⇒ ThreadPoolConfig.arrayBlockingQueue(size, false) //TODO config fairness?
