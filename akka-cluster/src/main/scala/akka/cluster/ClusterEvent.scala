@@ -156,30 +156,13 @@ object ClusterEvent {
   /**
    * INTERNAL API
    */
-  private[cluster] def diff(oldGossip: Gossip, newGossip: Gossip): immutable.Seq[ClusterDomainEvent] =
+  private[cluster] def diffUnreachable(oldGossip: Gossip, newGossip: Gossip): immutable.Seq[ClusterDomainEvent] =
     if (newGossip eq oldGossip) immutable.Seq.empty
     else {
-      val allNewUnreachable = newGossip.overview.unreachable -- oldGossip.overview.unreachable
-      val (newDowned, newUnreachable) = allNewUnreachable partition { _.status == Down }
-      val downedEvents = newDowned map MemberDowned
+      val newUnreachable = newGossip.overview.unreachable -- oldGossip.overview.unreachable
       val unreachableEvents = newUnreachable map UnreachableMember
 
-      val unreachableGroupedByAddress =
-        List(newGossip.overview.unreachable, oldGossip.overview.unreachable).flatten.groupBy(_.address)
-      val unreachableDownMembers = unreachableGroupedByAddress collect {
-        case (_, newMember :: oldMember :: Nil) if newMember.status == Down && newMember.status != oldMember.status ⇒
-          newMember
-      }
-      val unreachableDownedEvents = unreachableDownMembers map MemberDowned
-
-      val newConvergence = newGossip.convergence
-      val newSeenBy = newGossip.seenBy
-      val seenEvents =
-        if (newConvergence != oldGossip.convergence || newSeenBy != oldGossip.seenBy) Seq(SeenChanged(newConvergence, newSeenBy))
-        else Seq.empty
-
-      (new VectorBuilder[ClusterDomainEvent]() ++= unreachableEvents ++= downedEvents ++= unreachableDownedEvents ++=
-        seenEvents).result()
+      (new VectorBuilder[ClusterDomainEvent]() ++= unreachableEvents).result()
     }
 
   /**
@@ -203,6 +186,10 @@ object ClusterEvent {
         }
       }
 
+      val allNewUnreachable = newGossip.overview.unreachable -- oldGossip.overview.unreachable
+      val newDowned = allNewUnreachable filter { _.status == Down }
+      val downedEvents = newDowned map MemberDowned
+
       val leaderEvents =
         if (newGossip.leader != oldGossip.leader) Seq(LeaderChanged(newGossip.leader))
         else Seq.empty
@@ -211,9 +198,23 @@ object ClusterEvent {
         MemberRemoved(m.copy(status = Removed))
       }
 
-      (new VectorBuilder[ClusterDomainEvent]() ++= memberEvents ++= leaderEvents ++= removedEvents).result()
+      (new VectorBuilder[ClusterDomainEvent]() ++= memberEvents ++= downedEvents ++= leaderEvents ++= removedEvents).result()
     }
 
+  /**
+   * INTERNAL API
+   */
+  private[cluster] def diffSeen(oldGossip: Gossip, newGossip: Gossip): immutable.Seq[ClusterDomainEvent] =
+    if (newGossip eq oldGossip) immutable.Seq.empty
+    else {
+      val newConvergence = newGossip.convergence
+      val newSeenBy = newGossip.seenBy
+      val seenEvents =
+        if (newConvergence != oldGossip.convergence || newSeenBy != oldGossip.seenBy) Seq(SeenChanged(newConvergence, newSeenBy))
+        else Seq.empty
+
+      seenEvents.toList
+    }
 }
 
 /**
@@ -268,22 +269,25 @@ private[cluster] final class ClusterDomainEventPublisher extends Actor with Acto
     val oldGossip = latestGossip
     // keep the latestGossip to be sent to new subscribers
     latestGossip = newGossip
-    val convergedGossip = latestConvergedGossip
-    if (newGossip.convergence) latestConvergedGossip = newGossip
-    // first publish the converged diff if there is one
-    diffConverged(convergedGossip, latestConvergedGossip) foreach { publish(_) }
-    // then publish the diff between the last two gossips
-    diff(oldGossip, newGossip) foreach { event ⇒
+    // first publish the diffUnreachable between the last two gossips
+    diffUnreachable(oldGossip, newGossip) foreach { event ⇒
       event match {
         case UnreachableMember(m) ⇒
           publish(event)
           // notify DeathWatch about unreachable node
           publish(AddressTerminated(m.address))
         case _ ⇒
+          // FIXME:ban there sgould be no other events
           // all other events
           publish(event)
       }
     }
+    val convergedGossip = latestConvergedGossip
+    if (newGossip.convergence) latestConvergedGossip = newGossip
+    // then publish the diffConverged if there is one
+    diffConverged(convergedGossip, latestConvergedGossip) foreach { publish(_) }
+    // publish internal seenState for testing purposes
+    diffSeen(oldGossip, newGossip) foreach { publish(_) }
   }
 
   def publishInternalStats(currentStats: CurrentInternalStats): Unit = publish(currentStats)

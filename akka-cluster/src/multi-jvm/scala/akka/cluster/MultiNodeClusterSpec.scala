@@ -223,7 +223,6 @@ trait MultiNodeClusterSpec extends Suite with STMultiNodeSpec { self: MultiNodeS
     within(timeout) {
       awaitCond(clusterView.members.size == numberOfMembers)
       awaitCond(clusterView.members.forall(_.status == MemberStatus.Up))
-      awaitCond(clusterView.convergence)
       if (!canNotBePartOfMemberRing.isEmpty) // don't run this on an empty set
         awaitCond(
           canNotBePartOfMemberRing forall (address ⇒ !(clusterView.members exists (_.address == address))))

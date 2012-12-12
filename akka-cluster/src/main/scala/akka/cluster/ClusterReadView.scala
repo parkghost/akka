@@ -116,11 +116,6 @@ private[akka] class ClusterReadView(cluster: Cluster) extends Closeable {
   def isSingletonCluster: Boolean = members.size == 1
 
   /**
-   * Checks if we have a cluster convergence.
-   */
-  def convergence: Boolean = _convergence
-
-  /**
    * Returns true if the node is UP or JOINING.
    */
   def isAvailable: Boolean = {
