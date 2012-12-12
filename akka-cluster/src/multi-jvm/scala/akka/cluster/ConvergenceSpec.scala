@@ -76,8 +76,6 @@ abstract class ConvergenceSpec(multiNodeConfig: ConvergenceMultiNodeConfig)
           // still one unreachable
           clusterView.unreachableMembers.size must be(1)
           clusterView.unreachableMembers.head.address must be(thirdAddress)
-          // and therefore no convergence
-          clusterView.convergence must be(false)
 
         }
       }
@@ -105,8 +103,6 @@ abstract class ConvergenceSpec(multiNodeConfig: ConvergenceMultiNodeConfig)
           else memberStatus(second) must be(Some(MemberStatus.Up))
           // leader is not allowed to move the new node to Up
           memberStatus(fourth) must be(None)
-          // still no convergence
-          clusterView.convergence must be(false)
         }
       }
 

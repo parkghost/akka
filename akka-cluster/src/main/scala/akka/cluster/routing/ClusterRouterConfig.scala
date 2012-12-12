@@ -248,7 +248,6 @@ private[akka] class ClusterRouteeProvider(
  */
 private[akka] class ClusterRouterActor extends Router {
 
-  // subscribe to cluster changes, MemberEvent
   // re-subscribe when restart
   override def preStart(): Unit = {
     cluster.subscribe(self, classOf[MemberEvent])
@@ -294,7 +293,7 @@ private[akka] class ClusterRouterActor extends Router {
 
     case other: MemberEvent ⇒
       // other events means that it is no longer interesting, such as
-      // MemberJoined, MemberLeft, MemberExited, MemberUnreachable, MemberRemoved
+      // MemberJoined, MemberLeft, MemberExited, MemberRemoved
       unregisterRoutees(other.member)
 
     case UnreachableMember(m) ⇒
